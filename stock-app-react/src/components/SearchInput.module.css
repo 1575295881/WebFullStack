@@ -1,0 +1,31 @@
+.container {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 200px;
+    margin-right: 10px;
+}
+
+.input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.btn {
+    padding: 8px 16px;
+    background-color: #42b983;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.btn:disabled {
+    background-color: #999;
+    cursor: not-allowed;
+}
