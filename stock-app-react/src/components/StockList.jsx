@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import styles from './StockList.module.css';
 
 const StockList = ({ stockList, stockData, onDeleteStock, onAddStock}) => {
@@ -40,4 +40,4 @@ const StockList = ({ stockList, stockData, onDeleteStock, onAddStock}) => {
     );
 };
 
-export default StockList;
+export default memo(StockList);
