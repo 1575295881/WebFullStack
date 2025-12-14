@@ -3,78 +3,66 @@ import SearchInput from './components/SearchInput';
 import LoadingTip from './components/LoadingTip';
 import StockResult from './components/StockResult';
 import StockList from './components/StockList';
-import { useDebounce } from './hooks/useDebounce';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useRequest } from './hooks/useRequestHook';
 
 const StockSearch = () => {
     const [stockCode, setStockCode] = useState('');
-    const [loading, setLoading] = useState(false);
     const [stockData, setStockData] = useState(null);
     const [stockList, setStockList] = useState([]);
 
-    const isQueryingRef = useRef(false);
-    const abortControllerRef = useRef(null);
-    const [ debounceQuery, cancelDebounce] = useDebounce(() => {
+    const fetchStock = async({signal}) => {
+        const res = await fetch(`https://qt.gtimg.cn/q=sh${stockCode}`, {signal});
+        if (!res.ok) throw new Error('接口请求失败');
+        const buffer = await res.arrayBuffer();
+        const decoder = new TextDecoder('GBK');
+        const text = decoder.decode(buffer);
+        const match = text.match(/v_sh\d+="([^"]+)"/);
+        if (!match) throw new Error('未查询到股票数据');
+        const dataArr = match[1].split('~');
+
+        const currentPrice = Number(dataArr[3]) || 0;
+        const openPrice = Number(dataArr[2]) || 0;
+        const preClosePrice = Number(dataArr[4]) || 0;
+        return {
+            code: stockCode,
+            name: dataArr[1] || '未知股票',
+            currentPrice: currentPrice.toFixed(2),
+            openPrice: openPrice.toFixed(2),
+            change: (currentPrice - preClosePrice).toFixed(2),
+            changeRate: preClosePrice !== 0 ? ((currentPrice - preClosePrice) / preClosePrice * 100).toFixed(2)
+                : '0.0',
+        };
+    };
+    const { debouncedRequest: queryStock, cancelRequest, isLoading } = useRequest(fetchStock, 500);
+
+    useEffect(() => {
+      let isMounted = true;
+      const fetchData = async () => {
         if (stockCode.length === 6) {
-            queryStock();
-        }
-    }, 500);
-
-    useEffect(() => {
-        debounceQuery()
-        return () => cancelDebounce();
-    }, [stockCode, debounceQuery, cancelDebounce]);
-
-    useEffect(() => {
-        const savedList = localStorage.getItem('stockList');
-        if (savedList) {
-            setStockList(JSON.parse(savedList));
-        }
-    }, []);
-
-    const queryStock = useCallback(async () => {
-        if (isQueryingRef.current) return;
-        isQueryingRef.current = true;
-        setLoading(true);
-
-        if (abortControllerRef.current) abortControllerRef.current.abort();
-        abortControllerRef.current = new AbortController();
-        const signal = abortControllerRef.current.signal;
-
-        try {
-            const res = await fetch(`https://qt.gtimg.cn/q=sh${stockCode}`, { signal });
-            if (!res.ok) throw new Error('接口请求失败');
-
-            const buffer = await res.arrayBuffer();
-            const decoder =  new TextDecoder('GBK');
-
-            const text = decoder.decode(buffer);
-            const match = text.match(/v_sh\d+="([^"]+)"/);
-            if (!match) throw new Error('未查询到股票数据');
-
-            const dataArr = match[1].split('~');
-            const realData = {
-                code: stockCode,
-                name: dataArr[1],
-                currentPrice: dataArr[3],
-                openPrice: dataArr[2],
-                change: (Number(dataArr[3]) - Number(dataArr[4])).toFixed(2),
-                changeRate: ((Number(dataArr[3]) - Number(dataArr[4])) / Number(dataArr[4]) * 100).toFixed(2)
-            };
-            setStockData(realData);
-        } catch(error) {
-            if (error.name !== 'AbortError') {
-                alert(`查询失败: ${error.message}`)
+          try {
+            const result = await queryStock();
+            if (isMounted && result) {
+              setStockData(result);
             }
-        } finally {
-            setLoading(false);
-            isQueryingRef.current = false;
+          } catch (error) {
+            if (error.name !== "AbortError") {
+              alert(`查询失败: ${error.message}`);
+            }
+          }
         }
-    }, [stockCode]);
+      };
+      fetchData();
+      return () => {
+        isMounted = false;
+        cancelRequest();
+      };
+    }, [stockCode, queryStock, cancelRequest]);
 
     const addStock = useCallback((code) => {
         const newList = [...stockList, code];
         setStockList(newList);
-        localStorage.setItem(`stockList`, JSON.stringify(newList));
+        localStorage.setItem('stockList', JSON.stringify(newList));
     }, [stockList]);
 
     const deleteStock = useCallback((code) => {
@@ -84,23 +72,27 @@ const StockSearch = () => {
     }, [stockList]);
 
     return (
-        <div style={{maxWidth: '600px', margin: '20px auto', padding: '0 20px'}}>
-            <h2 style={{color: '#333', textAlign: 'center'}}>股票查询工具</h2>
-            <SearchInput
-                stockCode={stockCode}
-                loading={loading}
-                onCodeChange={setStockCode} 
-                onQuery={queryStock}
-            />
-            <LoadingTip loading={loading}/>
-            <StockResult stockData={stockData}/>
-            <StockList
-                stockList={stockList}
-                stockData={stockData}
-                onAddStock={addStock}
-                onDeleteStock={deleteStock}
-            />
+      <ErrorBoundary>
+        <div
+          style={{ maxWidth: "600px", margin: "20px auto", padding: "0 20px" }}
+        >
+          <h2 style={{ color: "#333", textAlign: "center" }}>股票查询工具</h2>
+          <SearchInput
+            stockCode={stockCode}
+            loading={isLoading}
+            onCodeChange={setStockCode}
+            onQuery={queryStock}
+          />
+          <LoadingTip loading={isLoading} />
+          <StockResult stockData={stockData} />
+          <StockList
+            stockList={stockList}
+            stockData={stockData}
+            onAddStock={addStock}
+            onDeleteStock={deleteStock}
+          />
         </div>
+      </ErrorBoundary>
     );
 };
 
