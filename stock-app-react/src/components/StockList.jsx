@@ -1,21 +1,15 @@
 import React from 'react';
+import styles from './StockList.module.css';
+
 const StockList = ({ stockList, stockData, onDeleteStock, onAddStock}) => {
     const isAdd = stockData && stockList.includes(stockData.code);
     return (
-        <div style={{marginTop: '20px'}}>
-            <h4 style={{color: '#333'}}>我的自选股</h4>
+        <div className={styles.container}>
+            <h4 className={styles.title}>我的自选股</h4>
             {stockData && !isAdd && (
                 <button
                     onClick={() => onAddStock(stockData.code)}
-                    style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#0088ff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        marginBottom: '10px'
-                    }}
+                    className={styles.addBtn}
                 >
                     添加到自选股
                 </button>
@@ -28,25 +22,12 @@ const StockList = ({ stockList, stockData, onDeleteStock, onAddStock}) => {
                         return (
                         <li
                             key={code}
-                            style={{
-                                padding: '8px',
-                                borderBottom: '1px solid #eee',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}
+                            className={styles.row}
                         >
                             <span>{code}</span>
                             <button
                                 onClick={() => onDeleteStock(code)}
-                                style={{
-                                    color: '#ff444',
-                                    border: '1px solid #ff444',
-                                    borderRadius: '3px',
-                                    background: 'none',
-                                    cursor: 'pointer',
-                                    padding: '2px 6px'
-                                }}
+                                className={styles.deleteBtn}
                             >
                                 删除
                             </button>
